@@ -4,7 +4,7 @@ Rebuild README from .good-reads/queue.txt and done.txt.
 
 Triggers (via env):
 - GOOD_READS_ADD / GOOD_READS_MARK: multiline (workflow_dispatch).
-- GOOD_READS_ISSUE_MODE=add|done + GOOD_READS_ISSUE_TITLE + GOOD_READS_ISSUE_BODY: issue opened.
+- GOOD_READS_FROM_ISSUE=true + GOOD_READS_ISSUE_TITLE + GOOD_READS_ISSUE_BODY: issue opened.
 """
 from __future__ import annotations
 
@@ -19,7 +19,8 @@ QUEUE = ROOT / ".good-reads" / "queue.txt"
 DONE = ROOT / ".good-reads" / "done.txt"
 README = ROOT / "README.md"
 
-URL_RE = re.compile(r"https?://[^\s\)\]<>\"']+", re.IGNORECASE)
+# Loose scan for URLs embedded in title/body (stops at whitespace).
+URL_TOKEN_RE = re.compile(r"https?://\S+", re.IGNORECASE)
 
 
 def parse_line(line: str) -> tuple[str, str | None] | None:
@@ -33,19 +34,39 @@ def parse_line(line: str) -> tuple[str, str | None] | None:
     return (s, None)
 
 
-def extract_urls(text: str) -> list[str]:
+def extract_urls_loose(text: str) -> list[str]:
     if not text:
         return []
-    raw = URL_RE.findall(text)
     out: list[str] = []
     seen: set[str] = set()
-    for u in raw:
-        u = u.rstrip(".,);]")
-        k = u.lower()
+    for u in URL_TOKEN_RE.findall(text):
+        u = u.rstrip(".,;:!?")
+        k = queue_key(u)
         if k not in seen:
             seen.add(k)
             out.append(u)
     return out
+
+
+def parse_issue_body_line(line: str) -> tuple[str, str | None] | None:
+    """One pasted line: plain URL, optional ``url | title``, or a single markdown link."""
+    s = line.strip()
+    if not s or s.startswith("#"):
+        return None
+    md = re.fullmatch(r"\[([^\]]*)\]\((https?://[^)]+)\)\s*", s, re.IGNORECASE)
+    if md:
+        url = md.group(2).strip()
+        label = (md.group(1) or "").strip()
+        return (url, label or None)
+    if "|" in s:
+        left, right = s.split("|", 1)
+        left, right = left.strip(), right.strip()
+        if re.match(r"^https?://", left, re.IGNORECASE):
+            return (left, right or None) if left else None
+        return None
+    if re.match(r"^https?://", s, re.IGNORECASE):
+        return (s, None)
+    return None
 
 
 def issue_intent(title: str) -> str | None:
@@ -65,12 +86,12 @@ def issue_body_to_additions(title: str, body: str) -> list[tuple[str, str | None
     items: list[tuple[str, str | None]] = []
     text = body or ""
     for line in text.splitlines():
-        p = parse_line(line)
+        p = parse_issue_body_line(line)
         if p:
             items.append(p)
     blob = f"{title or ''}\n{text}"
     seen = {queue_key(u) for u, _ in items}
-    for u in extract_urls(blob):
+    for u in extract_urls_loose(blob):
         k = queue_key(u)
         if k not in seen:
             items.append((u, None))
@@ -79,7 +100,7 @@ def issue_body_to_additions(title: str, body: str) -> list[tuple[str, str | None
 
 
 def issue_urls_for_done(title: str, body: str) -> list[str]:
-    return extract_urls(f"{title or ''}\n{body or ''}")
+    return [u for u, _ in issue_body_to_additions(title, body)]
 
 
 def read_queue(path: Path) -> list[tuple[str, str | None]]:
@@ -202,6 +223,12 @@ def render_readme(queue: list[tuple[str, str | None]], done_lines: list[str]) ->
         "3. **Description:** paste the **exact** URL you finished, e.g. `https://example.com/article-one` (copy from **To read** above).",
         "4. **Submit**. Actions removes it from **To read** and appends a line under **Done (recent)**; the issue closes.",
         "",
+        "## If nothing updates",
+        "",
+        "- Open **Actions** → **Good reads** and check the latest run (errors show there).",
+        "- This workflow file must be on your **default branch** (`main` / `master`) and **Actions** must be enabled.",
+        "- After fixing the workflow, open a **new** `[read]` issue (or re-run the failed workflow if GitHub offers it).",
+        "",
         "## To read",
         "",
     ]
@@ -233,22 +260,20 @@ def lines_from_env(name: str) -> list[tuple[str, str | None]]:
 def main() -> None:
     queue = read_queue(QUEUE)
     done_lines = read_done(DONE)
-    issue_mode = (os.environ.get("GOOD_READS_ISSUE_MODE") or "").strip().lower()
+    from_issue = os.environ.get("GOOD_READS_FROM_ISSUE", "").lower() in ("1", "true", "yes")
 
     additions: list[tuple[str, str | None]] = []
     mark_urls: list[str] = []
+    intent: str | None = None
 
-    if issue_mode in ("add", "done"):
+    if from_issue:
         title = os.environ.get("GOOD_READS_ISSUE_TITLE") or ""
         body = os.environ.get("GOOD_READS_ISSUE_BODY") or ""
         intent = issue_intent(title)
         if intent is None:
             print("Issue title does not start with [read]/[r] or [done]/[d]; skipping.", file=sys.stderr)
             sys.exit(0)
-        if intent != issue_mode:
-            print("Issue intent does not match GOOD_READS_ISSUE_MODE; skipping.", file=sys.stderr)
-            sys.exit(0)
-        if issue_mode == "add":
+        if intent == "add":
             additions.extend(issue_body_to_additions(title, body))
             if not additions:
                 print("No URLs found in issue. Add http(s) links in the body or title.", file=sys.stderr)
@@ -266,7 +291,7 @@ def main() -> None:
         queue = merge_into_queue(queue, additions)
     if mark_urls:
         queue, done_lines, moved = move_urls_from_queue(queue, mark_urls, done_lines)
-        if moved == 0 and issue_mode == "done":
+        if moved == 0 and from_issue and intent == "done":
             print("None of those URLs were in the queue.", file=sys.stderr)
             sys.exit(2)
 

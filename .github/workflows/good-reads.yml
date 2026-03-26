@@ -44,34 +44,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Issue → add
-        if: github.event_name == 'issues' && (startsWith(toLower(github.event.issue.title), '[read]') || startsWith(toLower(github.event.issue.title), '[r]'))
-        run: |
-          d="DELIM_${{ github.run_id }}"
-          {
-            echo "GOOD_READS_ISSUE_MODE=add"
-            echo "GOOD_READS_ISSUE_TITLE<<$d"
-            echo "${{ github.event.issue.title }}"
-            echo "$d"
-            echo "GOOD_READS_ISSUE_BODY<<$d"
-            echo "${{ github.event.issue.body || '' }}"
-            echo "$d"
-          } >> "$GITHUB_ENV"
-
-      - name: Issue → done
-        if: github.event_name == 'issues' && (startsWith(toLower(github.event.issue.title), '[done]') || startsWith(toLower(github.event.issue.title), '[d]'))
-        run: |
-          d="DELIM_${{ github.run_id }}"
-          {
-            echo "GOOD_READS_ISSUE_MODE=done"
-            echo "GOOD_READS_ISSUE_TITLE<<$d"
-            echo "${{ github.event.issue.title }}"
-            echo "$d"
-            echo "GOOD_READS_ISSUE_BODY<<$d"
-            echo "${{ github.event.issue.body || '' }}"
-            echo "$d"
-          } >> "$GITHUB_ENV"
-
       - name: Apply workflow_dispatch (add-read)
         if: github.event_name == 'workflow_dispatch' && inputs.mode == 'add-read' && inputs.url != ''
         env:
@@ -99,7 +71,13 @@ jobs:
             echo "__MARK__"
           } >> "$GITHUB_ENV"
 
+      # Pass issue title/body via job env (not shell echo) so multiline bodies and
+      # special characters in URLs are not corrupted.
       - name: Sync queue and README
+        env:
+          GOOD_READS_FROM_ISSUE: ${{ github.event_name == 'issues' }}
+          GOOD_READS_ISSUE_TITLE: ${{ github.event_name == 'issues' && github.event.issue.title || '' }}
+          GOOD_READS_ISSUE_BODY: ${{ github.event_name == 'issues' && github.event.issue.body || '' }}
         run: python3 .github/scripts/sync_good_reads.py
 
       - name: Commit if changed

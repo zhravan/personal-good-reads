@@ -34,6 +34,12 @@ Use **Issues** (no edits to this repo). Shorthand: `[r]` = add, `[d]` = done.
 3. **Description:** paste the **exact** URL you finished, e.g. `https://example.com/article-one` (copy from **To read** above).
 4. **Submit**. Actions removes it from **To read** and appends a line under **Done (recent)**; the issue closes.
 
+## If nothing updates
+
+- Open **Actions** → **Good reads** and check the latest run (errors show there).
+- This workflow file must be on your **default branch** (`main` / `master`) and **Actions** must be enabled.
+- After fixing the workflow, open a **new** `[read]` issue (or re-run the failed workflow if GitHub offers it).
+
 ## To read
 
 _Empty — add with a `[read]` issue._
