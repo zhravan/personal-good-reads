@@ -1,4 +1,4 @@
-# personal-good-reads
+# Track My Reads
 
 Use **Issues** (no edits to this repo). Shorthand: `[r]` = add, `[d]` = done.
 
