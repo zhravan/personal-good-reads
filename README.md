@@ -1,4 +1,4 @@
-# Track my reads
+# personal-good-reads
 
 Use **Issues** (no edits to this repo). Shorthand: `[r]` = add, `[d]` = done.
 
@@ -28,7 +28,7 @@ https://example.com/article-one | Great post
 https://example.org/guide
 ```
 
-1. **Submit** (Create). GitHub Actions runs; this README’s **To read** gains those links; the issue closes with a bot comment.
+4. **Submit** (Create). GitHub Actions runs; this README’s **To read** gains those links; the issue closes with a bot comment.
 
 **Mark one as read**
 
@@ -51,7 +51,9 @@ https://example.org/guide
 
 ## To read
 
-_Empty — add with a `[read]` issue._
+- [https://huyenchip.com/mlops](https://huyenchip.com/mlops)
+- [https://pages.run.ai/hubfs/PDFs/Complete-Guide-to-MLOps.pdf](https://pages.run.ai/hubfs/PDFs/Complete-Guide-to-MLOps.pdf)
+- [https://blog.infocruncher.com/resources/ml-productionisation/The%20Big%20Book%20of%20MLOps%20(Databricks,%20v6,%202022).pdf](https://blog.infocruncher.com/resources/ml-productionisation/The%20Big%20Book%20of%20MLOps%20(Databricks,%20v6,%202022).pdf)
 
 ## Done (recent)
 

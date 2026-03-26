@@ -1,0 +1,3 @@
+https://huyenchip.com/mlops
+https://pages.run.ai/hubfs/PDFs/Complete-Guide-to-MLOps.pdf
+https://blog.infocruncher.com/resources/ml-productionisation/The%20Big%20Book%20of%20MLOps%20(Databricks,%20v6,%202022).pdf
