@@ -4,10 +4,12 @@ Rebuild README from .good-reads/queue.txt and done.txt.
 
 Triggers (via env):
 - GOOD_READS_ADD / GOOD_READS_MARK: multiline (workflow_dispatch).
-- GOOD_READS_FROM_ISSUE=true + GOOD_READS_ISSUE_TITLE + GOOD_READS_ISSUE_BODY: issue opened.
+- issues: title/body read from GITHUB_EVENT_PATH (avoids broken multiline step env).
+- Optional: GOOD_READS_FROM_ISSUE + GOOD_READS_ISSUE_* for local testing.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -233,6 +235,7 @@ def render_readme(queue: list[tuple[str, str | None]], done_lines: list[str]) ->
         "",
         "- Open **Actions** → **Good reads** and check the latest run (errors show there).",
         "- This workflow file must be on your **default branch** (`main` / `master`) and **Actions** must be enabled.",
+        "- On **GitHub**, open the repo root on the default branch and refresh; **locally**, run `git pull` — the bot commits there, not on your machine.",
         "- After fixing the workflow, open a **new** `[read]` issue (or re-run the failed workflow if GitHub offers it).",
         "",
         "</details>",
@@ -253,6 +256,37 @@ def render_readme(queue: list[tuple[str, str | None]], done_lines: list[str]) ->
     return "\n".join(body)
 
 
+def read_issue_from_github_event() -> tuple[str, str] | None:
+    """Use the webhook JSON on the runner (always multiline-safe)."""
+    if os.environ.get("GITHUB_EVENT_NAME") != "issues":
+        return None
+    path = os.environ.get("GITHUB_EVENT_PATH")
+    if not path:
+        return None
+    p = Path(path)
+    if not p.is_file():
+        return None
+    try:
+        payload = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as e:
+        print(f"Could not read GITHUB_EVENT_PATH: {e}", file=sys.stderr)
+        return None
+    issue = payload.get("issue")
+    if not isinstance(issue, dict):
+        return None
+    title = issue.get("title")
+    body = issue.get("body")
+    if title is None:
+        title = ""
+    if body is None:
+        body = ""
+    if not isinstance(title, str):
+        title = str(title)
+    if not isinstance(body, str):
+        body = str(body)
+    return (title, body)
+
+
 def lines_from_env(name: str) -> list[tuple[str, str | None]]:
     raw = os.environ.get(name, "").strip()
     if not raw:
@@ -268,15 +302,25 @@ def lines_from_env(name: str) -> list[tuple[str, str | None]]:
 def main() -> None:
     queue = read_queue(QUEUE)
     done_lines = read_done(DONE)
-    from_issue = os.environ.get("GOOD_READS_FROM_ISSUE", "").lower() in ("1", "true", "yes")
+
+    issue_from_event = read_issue_from_github_event()
+    if issue_from_event is not None:
+        from_issue = True
+        title, body = issue_from_event
+    elif os.environ.get("GOOD_READS_FROM_ISSUE", "").lower() in ("1", "true", "yes"):
+        from_issue = True
+        title = os.environ.get("GOOD_READS_ISSUE_TITLE") or ""
+        body = os.environ.get("GOOD_READS_ISSUE_BODY") or ""
+    else:
+        from_issue = False
+        title = ""
+        body = ""
 
     additions: list[tuple[str, str | None]] = []
     mark_urls: list[str] = []
     intent: str | None = None
 
     if from_issue:
-        title = os.environ.get("GOOD_READS_ISSUE_TITLE") or ""
-        body = os.environ.get("GOOD_READS_ISSUE_BODY") or ""
         intent = issue_intent(title)
         if intent is None:
             print("Issue title does not start with [read]/[r] or [done]/[d]; skipping.", file=sys.stderr)

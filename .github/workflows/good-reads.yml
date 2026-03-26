@@ -78,13 +78,9 @@ jobs:
             echo "__MARK__"
           } >> "$GITHUB_ENV"
 
-      # Pass issue title/body via job env (not shell echo) so multiline bodies and
-      # special characters in URLs are not corrupted.
+      # Issue title/body: read from GITHUB_EVENT_PATH in Python (multiline-safe).
+      # Step env is unreliable for long issue descriptions.
       - name: Sync queue and README
-        env:
-          GOOD_READS_FROM_ISSUE: ${{ github.event_name == 'issues' }}
-          GOOD_READS_ISSUE_TITLE: ${{ github.event_name == 'issues' && github.event.issue.title || '' }}
-          GOOD_READS_ISSUE_BODY: ${{ github.event_name == 'issues' && github.event.issue.body || '' }}
         run: python3 .github/scripts/sync_good_reads.py
 
       - name: Commit if changed

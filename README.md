@@ -2,23 +2,17 @@
 
 Use **Issues** (no edits to this repo). Shorthand: `[r]` = add, `[d]` = done.
 
-<details>
-<summary><strong>Add</strong></summary>
+## Add
 
 1. New issue → title starts with **`[read]`**
 2. Paste links in the description (one per line; optional `url | title`)
 3. Submit — list updates here; issue auto-closes
 
-</details>
-
-<details>
-<summary><strong>Mark done</strong></summary>
+## Mark done
 
 1. New issue → title starts with **`[done]`**
 2. Paste the same URL(s) as in **To read**
 3. Submit — they go under **Done (recent)**; issue auto-closes
-
-</details>
 
 <details>
 <summary><strong>Example walkthrough</strong></summary>
@@ -50,6 +44,7 @@ https://example.org/guide
 
 - Open **Actions** → **Good reads** and check the latest run (errors show there).
 - This workflow file must be on your **default branch** (`main` / `master`) and **Actions** must be enabled.
+- On **GitHub**, open the repo root on the default branch and refresh; **locally**, run `git pull` — the bot commits there, not on your machine.
 - After fixing the workflow, open a **new** `[read]` issue (or re-run the failed workflow if GitHub offers it).
 
 </details>
